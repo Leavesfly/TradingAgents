@@ -3,48 +3,67 @@ import json
 
 
 def create_risk_manager(llm, memory):
+    """创建风险管理经理节点函数
+    
+    参数:
+        llm: 语言模型
+        memory: 记忆模块，用于存储和检索历史情境
+        
+    返回:
+        风险管理经理节点函数
+    """
     def risk_manager_node(state) -> dict:
-
+        """风险管理经理节点，用于评估风险辩论并做出最终交易决策"""
+        # 获取公司名称
         company_name = state["company_of_interest"]
 
+        # 获取辩论历史和风险辩论状态
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
+        # 获取各种研究报告
         market_research_report = state["market_report"]
         news_report = state["news_report"]
         fundamentals_report = state["news_report"]
         sentiment_report = state["sentiment_report"]
+        # 获取交易员计划
         trader_plan = state["investment_plan"]
 
+        # 组合当前情境信息
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
+        # 从记忆中获取类似情境
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
+        # 格式化历史记忆字符串
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Risky, Neutral, and Safe/Conservative—and determine the best course of action for the trader. Your decision must result in a clear recommendation: Buy, Sell, or Hold. Choose Hold only if strongly justified by specific arguments, not as a fallback when all sides seem valid. Strive for clarity and decisiveness.
+        # 构建提示词
+        prompt = f"""作为风险管理评委和辩论协调员，你的目标是评估三位风险分析师——激进、中性和保守/安全——之间的辩论，并确定交易员的最佳行动方案。你的决定必须产生一个明确的建议：买入、卖出或持有。只有在特定论点强烈证明的情况下才选择持有，而不是在所有方面都有效时的备选方案。力求清晰和果断。
 
-Guidelines for Decision-Making:
-1. **Summarize Key Arguments**: Extract the strongest points from each analyst, focusing on relevance to the context.
-2. **Provide Rationale**: Support your recommendation with direct quotes and counterarguments from the debate.
-3. **Refine the Trader's Plan**: Start with the trader's original plan, **{trader_plan}**, and adjust it based on the analysts' insights.
-4. **Learn from Past Mistakes**: Use lessons from **{past_memory_str}** to address prior misjudgments and improve the decision you are making now to make sure you don't make a wrong BUY/SELL/HOLD call that loses money.
+决策指南：
+1. **总结关键论点**：提取每个分析师的最强观点，重点关注与情境的相关性。
+2. **提供理由**：用辩论中的直接引用和反驳来支持你的建议。
+3. **完善交易员计划**：从交易员的原始计划**{trader_plan}**开始，根据分析师的见解进行调整。
+4. **从过去的错误中学习**：使用**{past_memory_str}**中的经验教训来解决过去的误判，并改进你现在做出的决策，确保你不会做出错误的买入/卖出/持有决定而导致亏损。
 
-Deliverables:
-- A clear and actionable recommendation: Buy, Sell, or Hold.
-- Detailed reasoning anchored in the debate and past reflections.
+交付内容：
+- 明确且可操作的建议：买入、卖出或持有。
+- 基于辩论和过去反思的详细推理。
 
 ---
 
-**Analysts Debate History:**  
+**分析师辩论历史：**  
 {history}
 
 ---
 
-Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes."""
+专注于可操作的见解和持续改进。建立在过去的教训基础上，批判性地评估所有观点，并确保每个决策都能带来更好的结果。"""
 
+        # 调用语言模型获取响应
         response = llm.invoke(prompt)
 
+        # 更新风险辩论状态
         new_risk_debate_state = {
             "judge_decision": response.content,
             "history": risk_debate_state["history"],
@@ -58,6 +77,7 @@ Focus on actionable insights and continuous improvement. Build on past lessons, 
             "count": risk_debate_state["count"],
         }
 
+        # 返回更新后的状态和最终交易决策
         return {
             "risk_debate_state": new_risk_debate_state,
             "final_trade_decision": response.content,

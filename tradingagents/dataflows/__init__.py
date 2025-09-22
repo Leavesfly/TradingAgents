@@ -1,3 +1,4 @@
+# 从各个工具模块导入功能函数
 from .finnhub_utils import get_data_in_range
 from .googlenews_utils import getNewsData
 from .yfin_utils import YFinanceUtils
@@ -5,42 +6,44 @@ from .reddit_utils import fetch_top_from_category
 from .stockstats_utils import StockstatsUtils
 from .yfin_utils import YFinanceUtils
 
+# 从接口模块导入各种数据获取函数
 from .interface import (
-    # News and sentiment functions
+    # 新闻和情绪相关函数
     get_finnhub_news,
     get_finnhub_company_insider_sentiment,
     get_finnhub_company_insider_transactions,
     get_google_news,
     get_reddit_global_news,
     get_reddit_company_news,
-    # Financial statements functions
+    # 财务报表相关函数
     get_simfin_balance_sheet,
     get_simfin_cashflow,
     get_simfin_income_statements,
-    # Technical analysis functions
+    # 技术分析相关函数
     get_stock_stats_indicators_window,
     get_stockstats_indicator,
-    # Market data functions
+    # 市场数据相关函数
     get_YFin_data_window,
     get_YFin_data,
 )
 
+# 定义模块的公共接口
 __all__ = [
-    # News and sentiment functions
+    # 新闻和情绪相关函数
     "get_finnhub_news",
     "get_finnhub_company_insider_sentiment",
     "get_finnhub_company_insider_transactions",
     "get_google_news",
     "get_reddit_global_news",
     "get_reddit_company_news",
-    # Financial statements functions
+    # 财务报表相关函数
     "get_simfin_balance_sheet",
     "get_simfin_cashflow",
     "get_simfin_income_statements",
-    # Technical analysis functions
+    # 技术分析相关函数
     "get_stock_stats_indicators_window",
     "get_stockstats_indicator",
-    # Market data functions
+    # 市场数据相关函数
     "get_YFin_data_window",
     "get_YFin_data",
 ]

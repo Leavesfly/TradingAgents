@@ -19,32 +19,36 @@ from .config import get_config, set_config, DATA_DIR
 def get_finnhub_news(
     ticker: Annotated[
         str,
-        "Search query of a company's, e.g. 'AAPL, TSM, etc.",
+        "搜索的公司查询，例如 'AAPL, TSM, 等'",
     ],
-    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
-    look_back_days: Annotated[int, "how many days to look back"],
+    curr_date: Annotated[str, "当前日期，格式为 yyyy-mm-dd"],
+    look_back_days: Annotated[int, "回 look back 的天数"],
 ):
     """
-    Retrieve news about a company within a time frame
+    获取公司在指定时间范围内的新闻
 
-    Args
-        ticker (str): ticker for the company you are interested in
-        start_date (str): Start date in yyyy-mm-dd format
-        end_date (str): End date in yyyy-mm-dd format
-    Returns
-        str: dataframe containing the news of the company in the time frame
+    参数:
+        ticker (str): 感兴趣的公司股票代码
+        start_date (str): 开始日期，格式为 yyyy-mm-dd
+        end_date (str): 结束日期，格式为 yyyy-mm-dd
+    返回:
+        str: 包含公司在指定时间范围内新闻的数据框
 
     """
 
+    # 计算开始日期
     start_date = datetime.strptime(curr_date, "%Y-%m-%d")
     before = start_date - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
 
+    # 从Finnhub获取新闻数据
     result = get_data_in_range(ticker, before, curr_date, "news_data", DATA_DIR)
 
+    # 如果没有数据，返回空字符串
     if len(result) == 0:
         return ""
 
+    # 组合新闻结果
     combined_result = ""
     for day, data in result.items():
         if len(data) == 0:
@@ -55,100 +59,110 @@ def get_finnhub_news(
             )
             combined_result += current_news + "\n\n"
 
-    return f"## {ticker} News, from {before} to {curr_date}:\n" + str(combined_result)
+    return f"## {ticker} 新闻, 从 {before} 到 {curr_date}:\n" + str(combined_result)
 
 
 def get_finnhub_company_insider_sentiment(
-    ticker: Annotated[str, "ticker symbol for the company"],
+    ticker: Annotated[str, "公司股票代码"],
     curr_date: Annotated[
         str,
-        "current date of you are trading at, yyyy-mm-dd",
+        "您交易的当前日期，格式为 yyyy-mm-dd",
     ],
-    look_back_days: Annotated[int, "number of days to look back"],
+    look_back_days: Annotated[int, "回 look back 的天数"],
 ):
     """
-    Retrieve insider sentiment about a company (retrieved from public SEC information) for the past 15 days
-    Args:
-        ticker (str): ticker symbol of the company
-        curr_date (str): current date you are trading on, yyyy-mm-dd
-    Returns:
-        str: a report of the sentiment in the past 15 days starting at curr_date
+    获取公司内部人士情绪（从公开的SEC信息中获取）过去15天的数据
+    参数:
+        ticker (str): 公司股票代码
+        curr_date (str): 您交易的当前日期，格式为 yyyy-mm-dd
+    返回:
+        str: 过去15天从curr_date开始的情绪报告
     """
 
+    # 计算开始日期
     date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
     before = date_obj - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
 
+    # 获取内部人士情绪数据
     data = get_data_in_range(ticker, before, curr_date, "insider_senti", DATA_DIR)
 
+    # 如果没有数据，返回空字符串
     if len(data) == 0:
         return ""
 
+    # 格式化结果字符串
     result_str = ""
     seen_dicts = []
     for date, senti_list in data.items():
         for entry in senti_list:
             if entry not in seen_dicts:
-                result_str += f"### {entry['year']}-{entry['month']}:\nChange: {entry['change']}\nMonthly Share Purchase Ratio: {entry['mspr']}\n\n"
+                result_str += f"### {entry['year']}-{entry['month']}:\n变化: {entry['change']}\n月度股票购买比率: {entry['mspr']}\n\n"
                 seen_dicts.append(entry)
 
     return (
-        f"## {ticker} Insider Sentiment Data for {before} to {curr_date}:\n"
+        f"## {ticker} 内部人士情绪数据，从 {before} 到 {curr_date}:\n"
         + result_str
-        + "The change field refers to the net buying/selling from all insiders' transactions. The mspr field refers to monthly share purchase ratio."
+        + "change字段表示所有内部人士交易的净买入/卖出。mspr字段表示月度股票购买比率。"
     )
 
 
 def get_finnhub_company_insider_transactions(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, "股票代码"],
     curr_date: Annotated[
         str,
-        "current date you are trading at, yyyy-mm-dd",
+        "您交易的当前日期，格式为 yyyy-mm-dd",
     ],
-    look_back_days: Annotated[int, "how many days to look back"],
+    look_back_days: Annotated[int, "回 look back 的天数"],
 ):
     """
-    Retrieve insider transcaction information about a company (retrieved from public SEC information) for the past 15 days
-    Args:
-        ticker (str): ticker symbol of the company
-        curr_date (str): current date you are trading at, yyyy-mm-dd
-    Returns:
-        str: a report of the company's insider transaction/trading informtaion in the past 15 days
+    获取公司内部人士交易信息（从公开的SEC信息中获取）过去15天的数据
+    参数:
+        ticker (str): 公司股票代码
+        curr_date (str): 您交易的当前日期，格式为 yyyy-mm-dd
+    返回:
+        str: 公司过去15天的内部人士交易/交易信息报告
     """
 
+    # 计算开始日期
     date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
     before = date_obj - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
 
+    # 获取内部人士交易数据
     data = get_data_in_range(ticker, before, curr_date, "insider_trans", DATA_DIR)
 
+    # 如果没有数据，返回空字符串
     if len(data) == 0:
         return ""
 
+    # 格式化结果字符串
     result_str = ""
 
     seen_dicts = []
     for date, senti_list in data.items():
         for entry in senti_list:
             if entry not in seen_dicts:
-                result_str += f"### Filing Date: {entry['filingDate']}, {entry['name']}:\nChange:{entry['change']}\nShares: {entry['share']}\nTransaction Price: {entry['transactionPrice']}\nTransaction Code: {entry['transactionCode']}\n\n"
+                result_str += f"### 申报日期: {entry['filingDate']}, {entry['name']}:\n变化:{entry['change']}\n股份: {entry['share']}\n交易价格: {entry['transactionPrice']}\n交易代码: {entry['transactionCode']}\n\n"
                 seen_dicts.append(entry)
 
     return (
-        f"## {ticker} insider transactions from {before} to {curr_date}:\n"
+        f"## {ticker} 内部人士交易，从 {before} 到 {curr_date}:\n"
         + result_str
-        + "The change field reflects the variation in share count—here a negative number indicates a reduction in holdings—while share specifies the total number of shares involved. The transactionPrice denotes the per-share price at which the trade was executed, and transactionDate marks when the transaction occurred. The name field identifies the insider making the trade, and transactionCode (e.g., S for sale) clarifies the nature of the transaction. FilingDate records when the transaction was officially reported, and the unique id links to the specific SEC filing, as indicated by the source. Additionally, the symbol ties the transaction to a particular company, isDerivative flags whether the trade involves derivative securities, and currency notes the currency context of the transaction."
+        + "change字段反映了持股数量的变化——这里的负数表示持股减少——而share指定了涉及的股份总数。transactionPrice表示交易执行的每股价格，transactionDate标记交易发生的时间。name字段标识进行交易的内部人士，transactionCode（例如，S表示卖出）阐明交易的性质。FilingDate记录交易正式报告的时间，唯一的id链接到特定的SEC文件，如来源所示。此外，symbol将交易与特定公司联系起来，isDerivative标记交易是否涉及衍生证券，currency注明交易的货币环境。"
     )
 
 
 def get_simfin_balance_sheet(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, "股票代码"],
     freq: Annotated[
         str,
-        "reporting frequency of the company's financial history: annual / quarterly",
+        "公司财务历史的报告频率：年度 / 季度",
     ],
-    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+    curr_date: Annotated[str, "您交易的当前日期，格式为 yyyy-mm-dd"],
 ):
+    """获取公司的资产负债表数据"""
+    # 构建数据路径
     data_path = os.path.join(
         DATA_DIR,
         "fundamental_data",
@@ -158,44 +172,47 @@ def get_simfin_balance_sheet(
         "us",
         f"us-balance-{freq}.csv",
     )
+    # 读取CSV数据
     df = pd.read_csv(data_path, sep=";")
 
-    # Convert date strings to datetime objects and remove any time components
+    # 将日期字符串转换为datetime对象并移除时间成分
     df["Report Date"] = pd.to_datetime(df["Report Date"], utc=True).dt.normalize()
     df["Publish Date"] = pd.to_datetime(df["Publish Date"], utc=True).dt.normalize()
 
-    # Convert the current date to datetime and normalize
+    # 将当前日期转换为datetime并标准化
     curr_date_dt = pd.to_datetime(curr_date, utc=True).normalize()
 
-    # Filter the DataFrame for the given ticker and for reports that were published on or before the current date
+    # 筛选给定股票代码和在当前日期或之前发布的报告
     filtered_df = df[(df["Ticker"] == ticker) & (df["Publish Date"] <= curr_date_dt)]
 
-    # Check if there are any available reports; if not, return a notification
+    # 检查是否有可用报告；如果没有，返回通知
     if filtered_df.empty:
-        print("No balance sheet available before the given current date.")
+        print("在给定的当前日期之前没有可用的资产负债表。")
         return ""
 
-    # Get the most recent balance sheet by selecting the row with the latest Publish Date
+    # 通过选择最新发布日期的行来获取最新的资产负债表
     latest_balance_sheet = filtered_df.loc[filtered_df["Publish Date"].idxmax()]
 
-    # drop the SimFinID column
+    # 删除SimFinID列
     latest_balance_sheet = latest_balance_sheet.drop("SimFinId")
 
     return (
-        f"## {freq} balance sheet for {ticker} released on {str(latest_balance_sheet['Publish Date'])[0:10]}: \n"
+        f"## {freq} 资产负债表 {ticker} 发布于 {str(latest_balance_sheet['Publish Date'])[0:10]}: \n"
         + str(latest_balance_sheet)
-        + "\n\nThis includes metadata like reporting dates and currency, share details, and a breakdown of assets, liabilities, and equity. Assets are grouped as current (liquid items like cash and receivables) and noncurrent (long-term investments and property). Liabilities are split between short-term obligations and long-term debts, while equity reflects shareholder funds such as paid-in capital and retained earnings. Together, these components ensure that total assets equal the sum of liabilities and equity."
+        + "\n\n这包括报告日期和货币等元数据，股份详情，以及资产、负债和权益的细分。资产分为流动资产（现金和应收账款等流动性项目）和非流动资产（长期投资和房地产）。负债在短期义务和长期债务之间分割，而权益反映股东资金，如实收资本和留存收益。这些组成部分共同确保总资产等于负债和权益的总和。"
     )
 
 
 def get_simfin_cashflow(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, "股票代码"],
     freq: Annotated[
         str,
-        "reporting frequency of the company's financial history: annual / quarterly",
+        "公司财务历史的报告频率：年度 / 季度",
     ],
-    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+    curr_date: Annotated[str, "您交易的当前日期，格式为 yyyy-mm-dd"],
 ):
+    """获取公司的现金流量表数据"""
+    # 构建数据路径
     data_path = os.path.join(
         DATA_DIR,
         "fundamental_data",
@@ -205,43 +222,44 @@ def get_simfin_cashflow(
         "us",
         f"us-cashflow-{freq}.csv",
     )
+    # 读取CSV数据
     df = pd.read_csv(data_path, sep=";")
 
-    # Convert date strings to datetime objects and remove any time components
+    # 将日期字符串转换为datetime对象并移除时间成分
     df["Report Date"] = pd.to_datetime(df["Report Date"], utc=True).dt.normalize()
     df["Publish Date"] = pd.to_datetime(df["Publish Date"], utc=True).dt.normalize()
 
-    # Convert the current date to datetime and normalize
+    # 将当前日期转换为datetime并标准化
     curr_date_dt = pd.to_datetime(curr_date, utc=True).normalize()
 
-    # Filter the DataFrame for the given ticker and for reports that were published on or before the current date
+    # 筛选给定股票代码和在当前日期或之前发布的报告
     filtered_df = df[(df["Ticker"] == ticker) & (df["Publish Date"] <= curr_date_dt)]
 
-    # Check if there are any available reports; if not, return a notification
+    # 检查是否有可用报告；如果没有，返回通知
     if filtered_df.empty:
-        print("No cash flow statement available before the given current date.")
+        print("在给定的当前日期之前没有可用的现金流量表。")
         return ""
 
-    # Get the most recent cash flow statement by selecting the row with the latest Publish Date
+    # 通过选择最新发布日期的行来获取最新的现金流量表
     latest_cash_flow = filtered_df.loc[filtered_df["Publish Date"].idxmax()]
 
-    # drop the SimFinID column
+    # 删除SimFinID列
     latest_cash_flow = latest_cash_flow.drop("SimFinId")
 
     return (
-        f"## {freq} cash flow statement for {ticker} released on {str(latest_cash_flow['Publish Date'])[0:10]}: \n"
+        f"## {freq} 现金流量表 {ticker} 发布于 {str(latest_cash_flow['Publish Date'])[0:10]}: \n"
         + str(latest_cash_flow)
-        + "\n\nThis includes metadata like reporting dates and currency, share details, and a breakdown of cash movements. Operating activities show cash generated from core business operations, including net income adjustments for non-cash items and working capital changes. Investing activities cover asset acquisitions/disposals and investments. Financing activities include debt transactions, equity issuances/repurchases, and dividend payments. The net change in cash represents the overall increase or decrease in the company's cash position during the reporting period."
+        + "\n\n这包括报告日期和货币等元数据，股份详情，以及现金流动的细分。经营活动显示来自核心业务运营的现金，包括对非现金项目的净收入调整和营运资本变化。投资活动涵盖资产的收购/处置和投资。筹资活动包括债务交易、股权发行/回购和股息支付。现金净变动代表公司在报告期间现金位置的总体增加或减少。"
     )
 
 
 def get_simfin_income_statements(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, "股票代码"],
     freq: Annotated[
         str,
-        "reporting frequency of the company's financial history: annual / quarterly",
+        "公司财务历史的报告频率：年度 / 季度",
     ],
-    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+    curr_date: Annotated[str, "您交易的当前日期，格式为 yyyy-mm-dd"],
 ):
     data_path = os.path.join(
         DATA_DIR,

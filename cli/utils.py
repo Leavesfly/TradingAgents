@@ -1,8 +1,13 @@
 import questionary
 from typing import List, Optional, Tuple, Dict
+from rich.console import Console
 
 from cli.models import AnalystType
 
+# 创建控制台实例
+console = Console()
+
+# 分析师顺序定义
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
     ("Social Media Analyst", AnalystType.SOCIAL),
@@ -12,7 +17,11 @@ ANALYST_ORDER = [
 
 
 def get_ticker() -> str:
-    """Prompt the user to enter a ticker symbol."""
+    """提示用户输入股票代码
+    
+    返回:
+        用户输入的股票代码（大写）
+    """
     ticker = questionary.text(
         "Enter the ticker symbol to analyze:",
         validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
@@ -32,11 +41,16 @@ def get_ticker() -> str:
 
 
 def get_analysis_date() -> str:
-    """Prompt the user to enter a date in YYYY-MM-DD format."""
+    """提示用户输入YYYY-MM-DD格式的日期
+    
+    返回:
+        用户输入的日期字符串
+    """
     import re
     from datetime import datetime
 
     def validate_date(date_str: str) -> bool:
+        """验证日期格式是否正确"""
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
             return False
         try:
@@ -65,7 +79,11 @@ def get_analysis_date() -> str:
 
 
 def select_analysts() -> List[AnalystType]:
-    """Select analysts using an interactive checkbox."""
+    """使用交互式复选框选择分析师
+    
+    返回:
+        选择的分析师类型列表
+    """
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
         choices=[
@@ -91,9 +109,13 @@ def select_analysts() -> List[AnalystType]:
 
 
 def select_research_depth() -> int:
-    """Select research depth using an interactive selection."""
+    """使用交互式选择研究深度
+    
+    返回:
+        选择的研究深度值
+    """
 
-    # Define research depth options with their corresponding values
+    # 定义研究深度选项及其对应的值
     DEPTH_OPTIONS = [
         ("Shallow - Quick research, few debate and strategy discussion rounds", 1),
         ("Medium - Middle ground, moderate debate rounds and strategy discussion", 3),
@@ -123,9 +145,16 @@ def select_research_depth() -> int:
 
 
 def select_shallow_thinking_agent(provider) -> str:
-    """Select shallow thinking llm engine using an interactive selection."""
+    """使用交互式选择浅层思考的LLM引擎
+    
+    参数:
+        provider: LLM提供商
+        
+    返回:
+        选择的LLM模型名称
+    """
 
-    # Define shallow thinking llm engine options with their corresponding model names
+    # 定义浅层思考LLM引擎选项及其对应的模型名称
     SHALLOW_AGENT_OPTIONS = {
         "openai": [
             ("GPT-4o-mini - Fast and efficient for quick tasks", "gpt-4o-mini"),
@@ -181,9 +210,16 @@ def select_shallow_thinking_agent(provider) -> str:
 
 
 def select_deep_thinking_agent(provider) -> str:
-    """Select deep thinking llm engine using an interactive selection."""
+    """使用交互式选择深层思考的LLM引擎
+    
+    参数:
+        provider: LLM提供商
+        
+    返回:
+        选择的LLM模型名称
+    """
 
-    # Define deep thinking llm engine options with their corresponding model names
+    # 定义深层思考LLM引擎选项及其对应的模型名称
     DEEP_AGENT_OPTIONS = {
         "openai": [
             ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
@@ -199,7 +235,7 @@ def select_deep_thinking_agent(provider) -> str:
             ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
             ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
             ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
-            ("Claude Opus 4 - Most powerful Anthropic model", "	claude-opus-4-0"),
+            ("Claude Opus 4 - Most powerful Anthropic model", "claude-opus-4-0"),
         ],
         "google": [
             ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
@@ -240,8 +276,12 @@ def select_deep_thinking_agent(provider) -> str:
     return choice
 
 def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+    """使用交互式选择LLM提供商和API URL
+    
+    返回:
+        选择的提供商名称和URL元组
+    """
+    # 定义LLM提供商选项及其对应的端点
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
