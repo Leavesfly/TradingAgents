@@ -25,7 +25,7 @@ import java.util.List;
 @Component
 public class ReportWriter {
     
-    private static final String DEFAULT_OUTPUT_DIR = "reports";
+    private static final String DEFAULT_OUTPUT_DIR = "./reports";
     private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     
