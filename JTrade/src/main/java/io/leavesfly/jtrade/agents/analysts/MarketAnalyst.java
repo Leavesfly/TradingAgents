@@ -1,6 +1,7 @@
 package io.leavesfly.jtrade.agents.analysts;
 
-import io.leavesfly.jtrade.agents.base.Agent;
+import io.leavesfly.jtrade.agents.base.BaseRecAgent;
+import io.leavesfly.jtrade.config.AppConfig;
 import io.leavesfly.jtrade.agents.base.AgentType;
 import io.leavesfly.jtrade.core.state.AgentState;
 import io.leavesfly.jtrade.dataflow.provider.DataAggregator;
@@ -24,53 +25,19 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-public class MarketAnalyst implements Agent {
+public class MarketAnalyst extends BaseRecAgent {
     
-    private final LlmClient llmClient;
-    private final DataAggregator dataAggregator;
-    private final ModelConfig modelConfig;
+    // Deleted: moved to BaseRecAgent
+    // Deleted: moved to BaseRecAgent
+    // Deleted: moved to BaseRecAgent
     
-    public MarketAnalyst(LlmClient llmClient, DataAggregator dataAggregator) {
-        this.llmClient = llmClient;
-        this.dataAggregator = dataAggregator;
-        this.modelConfig = ModelConfig.builder()
-                .temperature(0.7)
-                .maxTokens(2000)
-                .build();
+    public MarketAnalyst(LlmClient llmClient, DataAggregator dataAggregator, AppConfig appConfig) {
+        super(llmClient, dataAggregator, appConfig);
     }
     
     @Override
     public AgentState execute(AgentState state) {
-        log.info("市场分析师开始分析：{}", state.getCompany());
-        
-        try {
-            // 获取技术指标数据
-            Map<String, Double> indicators = dataAggregator.getTechnicalIndicators(state.getCompany());
-            
-            // 构建提示词
-            String prompt = buildPrompt(state.getCompany(), indicators);
-            
-            // 调用LLM进行分析
-            List<LlmMessage> messages = new ArrayList<>();
-            messages.add(LlmMessage.system("你是一位资深的技术分析师，擅长分析市场趋势和技术指标。"));
-            messages.add(LlmMessage.user(prompt));
-            
-            LlmResponse response = llmClient.chat(messages, modelConfig);
-            String analysis = response.getContent();
-            
-            log.info("市场分析完成，分析长度：{} 字符", analysis.length());
-            
-            // 更新状态
-            return state.addAnalystReport(
-                    String.format("【市场分析师】\n%s", analysis)
-            );
-            
-        } catch (Exception e) {
-            log.error("市场分析失败", e);
-            return state.addAnalystReport(
-                    String.format("【市场分析师】分析失败：%s", e.getMessage())
-            );
-        }
+        return super.execute(state);
     }
     
     private String buildPrompt(String symbol, Map<String, Double> indicators) {
@@ -101,5 +68,31 @@ public class MarketAnalyst implements Agent {
     @Override
     public AgentType getType() {
         return AgentType.MARKET_ANALYST;
+    }
+    
+    /**
+     * 使用 PromptManager 中的模板化提示
+     * 对应模板：react.analyst.market.system 和 react.analyst.market.prompt
+     */
+    @Override
+    protected String getPromptKey() {
+        return "react.analyst.market";
+    }
+    
+    @Override
+    protected String buildSystemPrompt() {
+        String base = super.buildSystemPrompt();
+        return "你是一位资深的技术分析师，擅长分析市场趋势和技术指标。\n" + base;
+    }
+    
+    @Override
+    protected String buildInitialUserPrompt(AgentState state) {
+        String symbol = state.getCompany();
+        String dateStr = state.getDate() != null ? state.getDate().toString() : "N/A";
+        return String.format(
+                "目标：对 %s 在 %s 的技术面进行分析，并给出趋势判断、技术强弱、支撑/阻力位与交易建议（BUY/SELL/HOLD）。必要时调用工具。\n" +
+                "请严格使用如下格式进行交互：\nThought: ...\nAction: <tool_name>\nAction Input: {json}\n在获得我返回的 Observation 后继续，直到给出 Final Answer。\n初始上下文：symbol=%s, date=%s",
+                symbol, dateStr, symbol, dateStr
+        );
     }
 }

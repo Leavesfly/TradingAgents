@@ -1,9 +1,11 @@
 package io.leavesfly.jtrade.agents.researchers;
 
-import io.leavesfly.jtrade.agents.base.Agent;
+import io.leavesfly.jtrade.agents.base.BaseRecAgent;
+import io.leavesfly.jtrade.config.AppConfig;
 import io.leavesfly.jtrade.agents.base.AgentType;
 import io.leavesfly.jtrade.core.state.AgentState;
 import io.leavesfly.jtrade.llm.client.LlmClient;
+import io.leavesfly.jtrade.dataflow.provider.DataAggregator;
 import io.leavesfly.jtrade.llm.model.LlmMessage;
 import io.leavesfly.jtrade.llm.model.LlmResponse;
 import io.leavesfly.jtrade.llm.model.ModelConfig;
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 /**
  * 空头研究员
@@ -22,77 +26,79 @@ import java.util.List;
  */
 @Slf4j
 @Component
-public class BearResearcher implements Agent {
+public class BearResearcher extends BaseRecAgent {
     
-    private final LlmClient llmClient;
-    private final ModelConfig modelConfig;
+    // Deleted: moved to BaseRecAgent
+    // Deleted: moved to BaseRecAgent
     
-    public BearResearcher(LlmClient llmClient) {
-        this.llmClient = llmClient;
-        this.modelConfig = ModelConfig.builder()
-                .temperature(0.8)
-                .maxTokens(2000)
-                .build();
+    public BearResearcher(LlmClient llmClient, DataAggregator dataAggregator, AppConfig appConfig) {
+        super(llmClient, dataAggregator, appConfig);
     }
     
     @Override
     public AgentState execute(AgentState state) {
-        log.info("空头研究员开始分析：{}", state.getCompany());
-        
-        try {
-            // 汇总所有分析师报告
-            String allReports = String.join("\n\n", state.getAnalystReports());
-            
-            // 构建提示词
-            String prompt = buildPrompt(state.getCompany(), allReports);
-            
-            // 调用LLM进行分析
-            List<LlmMessage> messages = new ArrayList<>();
-            messages.add(LlmMessage.system(
-                "你是一位看跌的研究员，专注于识别风险和做空机会。" +
-                "你需要从谨慎的角度分析市场数据，寻找支持看跌观点的证据。" +
-                "但你也必须保持专业和客观，不能忽视积极的因素。"
-            ));
-            messages.add(LlmMessage.user(prompt));
-            
-            LlmResponse response = llmClient.chat(messages, modelConfig);
-            String viewpoint = response.getContent();
-            
-            log.info("空头研究完成，观点长度：{} 字符", viewpoint.length());
-            
-            // 更新状态
-            return state.addResearcherViewpoint(
-                    String.format("【空头研究员】\n%s", viewpoint)
-            );
-            
-        } catch (Exception e) {
-            log.error("空头研究失败", e);
-            return state.addResearcherViewpoint(
-                    String.format("【空头研究员】分析失败：%s", e.getMessage())
-            );
-        }
+        ReactResult result = performReact(state);
+        return state.addResearcherViewpoint(String.format("【空头研究员】\n%s", result.finalAnswer))
+                .putMetadata("bear_trace", result.trace);
     }
     
-    private String buildPrompt(String symbol, String analystReports) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("股票代码：").append(symbol).append("\n\n");
-        sb.append("分析师报告汇总：\n");
-        sb.append(analystReports).append("\n\n");
-        
-        sb.append("作为空头研究员，请从看跌角度分析：\n");
-        sb.append("1. 找出所有潜在风险和负面因素\n");
-        sb.append("2. 分析为什么现在可能不适合买入或应该卖出\n");
-        sb.append("3. 评估下跌风险和可能的目标价位\n");
-        sb.append("4. 提出具体的卖出或观望建议\n");
-        sb.append("5. 同时也要承认积极因素（保持客观）\n");
-        sb.append("\n请提供有说服力的空头观点。");
-        
-        return sb.toString();
+    @Override
+    protected String buildSystemPrompt() {
+        String base = super.buildSystemPrompt();
+        return "你是一位看跌的研究员，擅长识别风险与做空机会。保持专业与客观。\n" + base;
+    }
+    
+    @Override
+    protected String buildInitialUserPrompt(AgentState state) {
+        String allReports = String.join("\n\n", state.getAnalystReports());
+        String symbol = state.getCompany();
+        return String.format(
+                "请从看跌角度综合以下分析师报告，提出卖出/风险观点与论据，并最终给出建议（BUY/SELL/HOLD）。\n报告汇总：\n%s\n\n股票代码：%s",
+                allReports, symbol
+        );
     }
     
     @Override
     public String getName() {
         return "空头研究员";
+    }
+    
+    @Override
+    protected void registerAdditionalTools(Map<String, Tool> tools) {
+        tools.put("bearish_signals", new Tool(
+                "bearish_signals",
+                "从给定指标中筛选看跌信号。输入：{\"rsi\":75,\"macd\":-1.5,\"volume_change\":-0.2}",
+                input -> {
+                    double rsi = toDouble(input.get("rsi"), 50.0);
+                    double macd = toDouble(input.get("macd"), 0.0);
+                    double volChg = toDouble(input.get("volume_change"), 0.0);
+                    List<String> signals = new ArrayList<>();
+                    if (rsi > 70) signals.add("RSI超买，回调压力大");
+                    else if (rsi > 50) signals.add("RSI偏高，存在回调风险");
+                    if (macd < 0) signals.add("MACD死叉，下跌动能增强");
+                    if (volChg < -0.15) signals.add("成交量萎缩，卖盘压力显现");
+                    if (signals.isEmpty()) signals.add("暂无明显看跌信号");
+                    Map<String, Object> out = new LinkedHashMap<>();
+                    out.put("rsi", rsi);
+                    out.put("macd", macd);
+                    out.put("volume_change", volChg);
+                    out.put("bearish_signals", signals);
+                    return toJson(out);
+                }
+        ));
+    }
+    
+    private double toDouble(Object v, double def) {
+        try { return Double.parseDouble(String.valueOf(v)); } catch (Exception e) { return def; }
+    }
+    
+    /**
+     * 使用 PromptManager 中的模板化提示
+     * 对应模板：react.researcher.bear.system 和 react.researcher.bear.prompt
+     */
+    @Override
+    protected String getPromptKey() {
+        return "react.researcher.bear";
     }
     
     @Override

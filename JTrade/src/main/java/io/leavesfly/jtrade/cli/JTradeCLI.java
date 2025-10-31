@@ -262,7 +262,6 @@ public class JTradeCLI {
     
     private void printVersion() {
         System.out.println("\nJTrade v" + VERSION);
-        System.out.println("Java 17 | Spring Boot 3.2");
         System.out.println("作者: 山泽");
     }
 }

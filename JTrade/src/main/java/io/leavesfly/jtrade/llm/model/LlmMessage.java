@@ -17,7 +17,7 @@ import lombok.NoArgsConstructor;
 public class LlmMessage {
     
     /**
-     * 消息角色: system, user, assistant
+     * 消息角色: system, user, assistant, tool
      */
     private String role;
     
@@ -52,6 +52,16 @@ public class LlmMessage {
     public static LlmMessage assistant(String content) {
         return LlmMessage.builder()
                 .role("assistant")
+                .content(content)
+                .build();
+    }
+    
+    /**
+     * 创建工具消息
+     */
+    public static LlmMessage tool(String content) {
+        return LlmMessage.builder()
+                .role("tool")
                 .content(content)
                 .build();
     }

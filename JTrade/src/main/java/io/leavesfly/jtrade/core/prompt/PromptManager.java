@@ -195,6 +195,128 @@ public class PromptManager {
         );
     }
     
+    // ========== ReAct 工具智能体提示 ==========
+    
+    /**
+     * 获取通用 ReAct 提示
+     */
+    public PromptTemplate getReactCommonPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.common"),
+            getUserPrompt("react.common")
+        );
+    }
+    
+    /**
+     * 获取市场分析师 ReAct 提示
+     */
+    public PromptTemplate getReactMarketAnalystPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.analyst.market"),
+            getUserPrompt("react.analyst.market")
+        );
+    }
+    
+    /**
+     * 获取基本面分析师 ReAct 提示
+     */
+    public PromptTemplate getReactFundamentalsAnalystPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.analyst.fundamentals"),
+            getUserPrompt("react.analyst.fundamentals")
+        );
+    }
+    
+    /**
+     * 获取新闻分析师 ReAct 提示
+     */
+    public PromptTemplate getReactNewsAnalystPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.analyst.news"),
+            getUserPrompt("react.analyst.news")
+        );
+    }
+    
+    /**
+     * 获取社交媒体分析师 ReAct 提示
+     */
+    public PromptTemplate getReactSocialMediaAnalystPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.analyst.social"),
+            getUserPrompt("react.analyst.social")
+        );
+    }
+    
+    /**
+     * 获取多头研究员 ReAct 提示
+     */
+    public PromptTemplate getReactBullResearcherPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.researcher.bull"),
+            getUserPrompt("react.researcher.bull")
+        );
+    }
+    
+    /**
+     * 获取空头研究员 ReAct 提示
+     */
+    public PromptTemplate getReactBearResearcherPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.researcher.bear"),
+            getUserPrompt("react.researcher.bear")
+        );
+    }
+    
+    /**
+     * 获取交易员 ReAct 提示
+     */
+    public PromptTemplate getReactTraderPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.trader"),
+            getUserPrompt("react.trader")
+        );
+    }
+    
+    /**
+     * 获取风险管理器 ReAct 提示
+     */
+    public PromptTemplate getReactRiskManagerPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.manager.risk"),
+            getUserPrompt("react.manager.risk")
+        );
+    }
+    
+    /**
+     * 获取激进辩论者 ReAct 提示
+     */
+    public PromptTemplate getReactAggressiveDebatorPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.debator.aggressive"),
+            getUserPrompt("react.debator.aggressive")
+        );
+    }
+    
+    /**
+     * 获取保守辩论者 ReAct 提示
+     */
+    public PromptTemplate getReactConservativeDebatorPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.debator.conservative"),
+            getUserPrompt("react.debator.conservative")
+        );
+    }
+    
+    /**
+     * 获取中立辩论者 ReAct 提示
+     */
+    public PromptTemplate getReactNeutralDebatorPrompt() {
+        return new PromptTemplate(
+            getSystemPrompt("react.debator.neutral"),
+            getUserPrompt("react.debator.neutral")
+        );
+    }
+    
     /**
      * Prompt 模板类
      */

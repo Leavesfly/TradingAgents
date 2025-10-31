@@ -1,9 +1,11 @@
 package io.leavesfly.jtrade.agents.managers;
 
-import io.leavesfly.jtrade.agents.base.Agent;
+import io.leavesfly.jtrade.agents.base.BaseRecAgent;
+import io.leavesfly.jtrade.config.AppConfig;
 import io.leavesfly.jtrade.agents.base.AgentType;
 import io.leavesfly.jtrade.core.state.AgentState;
 import io.leavesfly.jtrade.llm.client.LlmClient;
+import io.leavesfly.jtrade.dataflow.provider.DataAggregator;
 import io.leavesfly.jtrade.llm.model.LlmMessage;
 import io.leavesfly.jtrade.llm.model.LlmResponse;
 import io.leavesfly.jtrade.llm.model.ModelConfig;
@@ -22,76 +24,53 @@ import java.util.List;
  */
 @Slf4j
 @Component
-public class ResearchManager implements Agent {
+public class ResearchManager extends BaseRecAgent {
     
-    private final LlmClient llmClient;
-    private final ModelConfig modelConfig;
+    // Deleted: moved to BaseRecAgent
+    // Deleted: moved to BaseRecAgent
     
-    public ResearchManager(LlmClient llmClient) {
-        this.llmClient = llmClient;
-        this.modelConfig = ModelConfig.builder()
-                .temperature(0.6)
-                .maxTokens(2000)
-                .build();
+    public ResearchManager(LlmClient llmClient, DataAggregator dataAggregator, AppConfig appConfig) {
+        super(llmClient, dataAggregator, appConfig);
     }
     
     @Override
     public AgentState execute(AgentState state) {
-        log.info("研究经理开始综合决策：{}", state.getCompany());
-        
-        try {
-            // 汇总所有观点
-            String allViewpoints = String.join("\n\n", state.getResearcherViewpoints());
-            
-            // 构建提示词
-            String prompt = buildPrompt(state.getCompany(), allViewpoints);
-            
-            // 调用LLM进行决策
-            List<LlmMessage> messages = new ArrayList<>();
-            messages.add(LlmMessage.system(
-                "你是一位经验丰富的研究经理，负责综合多空双方的观点做出最终投资决策。" +
-                "你需要客观、理性地权衡双方论据，做出明确的投资建议。"
-            ));
-            messages.add(LlmMessage.user(prompt));
-            
-            LlmResponse response = llmClient.chat(messages, modelConfig);
-            String decision = response.getContent();
-            
-            log.info("研究经理决策完成，决策长度：{} 字符", decision.length());
-            
-            // 更新状态
-            return state.toBuilder()
-                    .researchManagerDecision(decision)
-                    .build();
-            
-        } catch (Exception e) {
-            log.error("研究经理决策失败", e);
-            return state.toBuilder()
-                    .researchManagerDecision(String.format("决策失败：%s", e.getMessage()))
-                    .build();
-        }
+        ReactResult result = performReact(state);
+        AgentState updated = state.toBuilder()
+                .researchManagerDecision(result.finalAnswer)
+                .build();
+        return updated.putMetadata("research_manager_trace", result.trace);
     }
     
-    private String buildPrompt(String symbol, String researcherViewpoints) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("股票代码：").append(symbol).append("\n\n");
-        sb.append("研究员观点汇总：\n");
-        sb.append(researcherViewpoints).append("\n\n");
-        
-        sb.append("作为研究经理，请：\n");
-        sb.append("1. 客观评估多空双方的论据强度\n");
-        sb.append("2. 权衡各种因素和风险\n");
-        sb.append("3. 做出明确的投资方向决策（买入/卖出/观望）\n");
-        sb.append("4. 如果决定买入或卖出，请给出建议的仓位大小（轻仓/中仓/重仓）\n");
-        sb.append("5. 说明决策的核心依据和风险提示\n");
-        sb.append("\n请提供清晰、果断的决策建议。");
-        
-        return sb.toString();
+    @Override
+    protected String buildSystemPrompt() {
+        String base = super.buildSystemPrompt();
+        return "你是一位经验丰富的研究经理，负责综合多空双方的观点做出最终投资决策。\n" + base;
+    }
+    
+    @Override
+    protected String buildInitialUserPrompt(AgentState state) {
+        String symbol = state.getCompany();
+        String allViewpoints = String.join("\n\n", state.getResearcherViewpoints());
+        return String.format(
+                "请综合以下研究员观点，客观权衡并给出最终投资决策（BUY/SELL/HOLD），在最终答案中明确建议与依据。\n股票代码：%s\n观点汇总：\n%s",
+                symbol, allViewpoints
+        );
     }
     
     @Override
     public String getName() {
         return "研究经理";
+    }
+    
+    /**
+     * 使用 PromptManager 中的模板化提示
+     * 注意：ResearchManager 当前使用传统格式，非 ReAct 模式
+     * 对应模板：manager.research.system 和 manager.research.prompt
+     */
+    @Override
+    protected String getPromptKey() {
+        return "manager.research";
     }
     
     @Override

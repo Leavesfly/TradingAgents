@@ -27,7 +27,10 @@ public enum AgentType {
     // 风险评估团队
     AGGRESSIVE_DEBATER("激进分析师"),
     CONSERVATIVE_DEBATER("保守分析师"),
-    NEUTRAL_DEBATER("中立分析师");
+    NEUTRAL_DEBATER("中立分析师"),
+    
+    // 新增：工具支持的通用智能体
+    REC_AGENT("工具智能体");
     
     private final String displayName;
     

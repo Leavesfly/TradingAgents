@@ -1,18 +1,20 @@
 package io.leavesfly.jtrade.agents.managers;
 
-import io.leavesfly.jtrade.agents.base.Agent;
+import io.leavesfly.jtrade.agents.base.BaseRecAgent;
+import io.leavesfly.jtrade.config.AppConfig;
 import io.leavesfly.jtrade.agents.base.AgentType;
 import io.leavesfly.jtrade.core.state.AgentState;
 import io.leavesfly.jtrade.core.state.RiskDebateState;
 import io.leavesfly.jtrade.llm.client.LlmClient;
+import io.leavesfly.jtrade.dataflow.provider.DataAggregator;
 import io.leavesfly.jtrade.llm.model.LlmMessage;
 import io.leavesfly.jtrade.llm.model.LlmResponse;
 import io.leavesfly.jtrade.llm.model.ModelConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 /**
  * 风险管理器
@@ -23,92 +25,41 @@ import java.util.List;
  */
 @Slf4j
 @Component
-public class RiskManager implements Agent {
+public class RiskManager extends BaseRecAgent {
     
-    private final LlmClient llmClient;
-    private final ModelConfig modelConfig;
+    // Deleted: moved to BaseRecAgent
+    // Deleted: moved to BaseRecAgent
     
-    public RiskManager(LlmClient llmClient) {
-        this.llmClient = llmClient;
-        this.modelConfig = ModelConfig.builder()
-                .temperature(0.5)
-                .maxTokens(1500)
-                .build();
+    public RiskManager(LlmClient llmClient, DataAggregator dataAggregator, AppConfig appConfig) {
+        super(llmClient, dataAggregator, appConfig);
     }
     
     @Override
     public AgentState execute(AgentState state) {
-        log.info("风险管理器开始评估：{}", state.getCompany());
-        
-        try {
-            // 获取交易计划和风险辩论
-            String tradingPlan = state.getTradingPlan();
-            RiskDebateState riskDebate = state.getRiskDebate();
-            
-            // 构建提示词
-            String prompt = buildPrompt(state.getCompany(), tradingPlan, riskDebate);
-            
-            // 调用LLM做出最终决策
-            List<LlmMessage> messages = new ArrayList<>();
-            messages.add(LlmMessage.system(
-                "你是一位严谨的风险管理器，负责评估交易计划的风险并做出最终批准决策。" +
-                "你需要权衡收益和风险，确保交易符合风险管理原则。"
-            ));
-            messages.add(LlmMessage.user(prompt));
-            
-            LlmResponse response = llmClient.chat(messages, modelConfig);
-            String decision = response.getContent();
-            
-            // 从决策中提取最终信号
-            String finalSignal = extractSignal(decision);
-            
-            log.info("风险管理决策完成，最终信号：{}", finalSignal);
-            
-            // 更新状态
-            return state.toBuilder()
-                    .riskManagerDecision(decision)
-                    .finalSignal(finalSignal)
-                    .build();
-            
-        } catch (Exception e) {
-            log.error("风险管理决策失败", e);
-            return state.toBuilder()
-                    .riskManagerDecision(String.format("决策失败：%s", e.getMessage()))
-                    .finalSignal("HOLD")
-                    .build();
-        }
+        ReactResult result = performReact(state);
+        String finalSignal = extractSignal(result.finalAnswer);
+        AgentState updated = state.toBuilder()
+                .riskManagerDecision(result.finalAnswer)
+                .finalSignal(finalSignal)
+                .build();
+        return updated.putMetadata("risk_manager_trace", result.trace);
     }
     
-    private String buildPrompt(String symbol, String tradingPlan, RiskDebateState riskDebate) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("股票代码：").append(symbol).append("\n\n");
-        sb.append("交易计划：\n");
-        sb.append(tradingPlan).append("\n\n");
-        
-        if (riskDebate != null) {
-            sb.append("风险辩论记录：\n");
-            if (!riskDebate.getAggressiveStrategies().isEmpty()) {
-                sb.append("激进观点：").append(String.join("; ", riskDebate.getAggressiveStrategies())).append("\n");
-            }
-            if (!riskDebate.getConservativeStrategies().isEmpty()) {
-                sb.append("保守观点：").append(String.join("; ", riskDebate.getConservativeStrategies())).append("\n");
-            }
-            if (!riskDebate.getNeutralStrategies().isEmpty()) {
-                sb.append("中立观点：").append(String.join("; ", riskDebate.getNeutralStrategies())).append("\n");
-            }
-            sb.append("\n");
-        }
-        
-        sb.append("作为风险管理器，请：\n");
-        sb.append("1. 评估交易计划的整体风险水平\n");
-        sb.append("2. 检查止损和止盈设置是否合理\n");
-        sb.append("3. 评估仓位配置是否符合风险管理原则\n");
-        sb.append("4. 综合考虑风险辩论中的各方观点\n");
-        sb.append("5. 做出最终决策：APPROVE（批准）、REJECT（拒绝）或 MODIFY（建议修改）\n");
-        sb.append("6. 如果批准，明确最终交易信号：BUY、SELL 或 HOLD\n");
-        sb.append("\n请提供清晰的风险评估和最终决策。");
-        
-        return sb.toString();
+    @Override
+    protected String buildSystemPrompt() {
+        String base = super.buildSystemPrompt();
+        return "你是一位严谨的风险管理器，负责评估交易计划的风险并做出最终批准决策。\n" + base;
+    }
+    
+    @Override
+    protected String buildInitialUserPrompt(AgentState state) {
+        String symbol = state.getCompany();
+        RiskDebateState riskDebate = state.getRiskDebate();
+        String tradingPlan = state.getTradingPlan();
+        return String.format(
+                "请基于交易计划与风险辩论内容进行风险评估，做出最终决策（APPROVE/REJECT/MODIFY），并明确最终交易信号（BUY/SELL/HOLD）。\n股票代码：%s\n交易计划：\n%s\n风险辩论：%s",
+                symbol, tradingPlan, riskDebate != null ? riskDebate.toString() : "N/A"
+        );
     }
     
     /**
@@ -129,6 +80,43 @@ public class RiskManager implements Agent {
     @Override
     public String getName() {
         return "风险管理器";
+    }
+    
+    @Override
+    protected void registerAdditionalTools(Map<String, Tool> tools) {
+        tools.put("risk_score", new Tool(
+                "risk_score",
+                "根据输入风险因子计算风险评分。输入：{\"volatility\":0.3,\"liquidity\":0.8,\"leverage\":2}",
+                input -> {
+                    double vol = toDouble(input.get("volatility"), 0.3);
+                    double liq = toDouble(input.get("liquidity"), 0.8);
+                    double lev = toDouble(input.get("leverage"), 1.0);
+                    double score = clamp(vol * 0.5 + (1 - liq) * 0.3 + (lev / 10.0) * 0.2, 0.0, 1.0);
+                    String level = score > 0.7 ? "HIGH" : (score > 0.4 ? "MEDIUM" : "LOW");
+                    Map<String, Object> out = new LinkedHashMap<>();
+                    out.put("volatility", vol);
+                    out.put("liquidity", liq);
+                    out.put("leverage", lev);
+                    out.put("risk_score", score);
+                    out.put("risk_level", level);
+                    return toJson(out);
+                }
+        ));
+    }
+    
+    private double toDouble(Object v, double def) {
+        try { return Double.parseDouble(String.valueOf(v)); } catch (Exception e) { return def; }
+    }
+    
+    private double clamp(double x, double lo, double hi) { return Math.max(lo, Math.min(hi, x)); }
+    
+    /**
+     * 使用 PromptManager 中的模板化提示
+     * 对应模板：react.manager.risk.system 和 react.manager.risk.prompt
+     */
+    @Override
+    protected String getPromptKey() {
+        return "react.manager.risk";
     }
     
     @Override

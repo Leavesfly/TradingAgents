@@ -4,6 +4,7 @@ import io.leavesfly.jtrade.agents.analysts.FundamentalsAnalyst;
 import io.leavesfly.jtrade.agents.analysts.MarketAnalyst;
 import io.leavesfly.jtrade.agents.analysts.NewsAnalyst;
 import io.leavesfly.jtrade.agents.analysts.SocialMediaAnalyst;
+import io.leavesfly.jtrade.agents.analysts.RecAgent;
 import io.leavesfly.jtrade.agents.base.Agent;
 import io.leavesfly.jtrade.agents.managers.ResearchManager;
 import io.leavesfly.jtrade.agents.managers.RiskManager;
@@ -15,6 +16,7 @@ import io.leavesfly.jtrade.agents.risk.NeutralDebator;
 import io.leavesfly.jtrade.agents.trader.Trader;
 import io.leavesfly.jtrade.core.memory.MemoryService;
 import io.leavesfly.jtrade.core.reflection.ReflectionService;
+import io.leavesfly.jtrade.config.AppConfig;
 import io.leavesfly.jtrade.core.state.AgentState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -58,6 +60,9 @@ public class TradingGraph {
     private final ReflectionService reflectionService;
     private final MemoryService memoryService;
     
+    // 应用配置
+    private final AppConfig appConfig;
+    
     // 条件逻辑
     private final ConditionalLogic conditionalLogic;
     
@@ -70,6 +75,7 @@ public class TradingGraph {
             FundamentalsAnalyst fundamentalsAnalyst,
             NewsAnalyst newsAnalyst,
             SocialMediaAnalyst socialMediaAnalyst,
+            RecAgent recAgent,
             BullResearcher bullResearcher,
             BearResearcher bearResearcher,
             Trader trader,
@@ -79,13 +85,22 @@ public class TradingGraph {
             ResearchManager researchManager,
             RiskManager riskManager,
             ReflectionService reflectionService,
-            MemoryService memoryService) {
+            MemoryService memoryService,
+            AppConfig appConfig) {
         
         // 初始化分析师团队
         this.analysts.add(marketAnalyst);
         this.analysts.add(fundamentalsAnalyst);
         this.analysts.add(newsAnalyst);
         this.analysts.add(socialMediaAnalyst);
+        
+        // 配置开关：启用RecAgent作为分析阶段的工具智能体
+        if (appConfig.getDataSource() != null && appConfig.getDataSource().isOnlineTools()) {
+            this.analysts.add(recAgent);
+            log.info("RecAgent 已启用并加入分析师阶段");
+        } else {
+            log.info("RecAgent 未启用（jtrade.dataSource.onlineTools=false）");
+        }
         
         this.bullResearcher = bullResearcher;
         this.bearResearcher = bearResearcher;
@@ -97,6 +112,7 @@ public class TradingGraph {
         this.riskManager = riskManager;
         this.reflectionService = reflectionService;
         this.memoryService = memoryService;
+        this.appConfig = appConfig;
         
         this.conditionalLogic = new ConditionalLogic();
         this.maxDebateRounds = 1;
